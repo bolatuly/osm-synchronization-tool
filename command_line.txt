@@ -1,0 +1,7 @@
+#diff using
+osm2pgsql --append '/home/azamat/projects/labaratory/osm_synchronization_tool/data/211.osc.gz' -s -W --database sync_osm --proj=3857 --hstore-all
+
+#initial import using osm2pgsql
+osm2pgsql --create -U postgres -W --database sync_osm --slim --hstore-all --proj=3857
+/home/azamat/projects/labaratory/osm_shape_extract/data/south-korea-latest.osm.pbf
+
