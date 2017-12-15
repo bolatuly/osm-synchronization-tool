@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Box>
+        <left>126.6058</left>
+        <right>127.3422</right>
+        <top>37.7371</top>
+        <bottom>37.3925</bottom>
+    </Box>
+    <Osm2pqsqlDatabase>
+        <host>localhost</host>
+        <port>5432</port>
+        <db></db>
+        <user>postgres</user>
+        <pwd>zxc123</pwd>
+    </Osm2pqsqlDatabase>
+    <CustomDatabase>
+        <host>localhost</host>
+        <port>5432</port>
+        <db></db>
+        <user>postgres</user>
+        <pwd>zxc123</pwd>
+    </CustomDatabase>
+</Configuration>

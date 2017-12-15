@@ -7,6 +7,8 @@ from entity.building import Building
 from entity.river import River
 from entity.road import Road
 from database import Database
+import shapely.wkb as wkblib
+import geojson
 
 
 class FileStatsHandler(o.SimpleHandler):
@@ -101,18 +103,20 @@ class Processor:
 
     @staticmethod
     def delete(db, type, feature):
-        if type == 'building':
-            b = Building()
-            b.id = feature[2]
-            return building_sync.delete(b)
-        if type == 'road':
-            b = Road()
-            b.id = feature[2]
-            return road_sync.delete(feature[2])
-        if type == 'river':
-            b = River()
-            b.id = feature[2]
-            return river_sync.delete(feature[2])
+        data = db.select(feature, type)
+        tags = []
+        if len(data) != 0:
+            for d in data:
+                id = d[0]
+                geom = d[3]
+                tags.append((d[1], d[2]))
+            entity = Processor.makeEntity(id, geom, tags, type)
+            if type == 'building':
+                return building_sync.delete(entity)
+            if type == 'road':
+                return road_sync.delete(entity)
+            if type == 'river':
+                return river_sync.delete(entity)
 
     @staticmethod
     def add(db, type, feature):
@@ -149,13 +153,26 @@ class Processor:
                 return river_sync.edit(entity)
 
 
-if __name__ == '__main__':
+def make_geojson(entity):
+    g1 = wkblib.loads(entity.geom, hex=True)
+    g2 = geojson.Feature(geometry=g1, properties={})
+    return g2
 
+
+def syncronize(file):
     h = FileStatsHandler()
 
-    h.apply_file("data/211.osc.gz", locations=True)
+    h.apply_file(file, locations=True)
 
-    b_deleted = b_added = b_edited = road_deleted = road_added = road_edited = river_deleted = river_added = river_edited = 0
+    b_deleted = []
+    b_added = []
+    b_edited = []
+    road_deleted = []
+    road_added = []
+    road_edited = []
+    river_deleted = []
+    river_added = []
+    river_edited = []
 
     db = Database()
 
@@ -163,41 +180,61 @@ if __name__ == '__main__':
         if feature[0] == 'way':
             for item in feature[4]:
                 if item[0] == 'building':
-                    if Processor.delete(db, 'building', feature):
-                        b_deleted += 1
+                    entity = Processor.delete(db, 'building', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        b_deleted.append(entity)
                 elif item[0] == 'highway' and item[1] == 'road':
-                    if Processor.delete(db, 'road', feature):
-                        road_deleted += 1
+                    entity = Processor.delete(db, 'road', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        road_deleted.append(entity)
                 elif item[0] == 'waterway' and item[1] == 'river':
-                    if Processor.delete(db, 'river', feature):
-                        river_deleted += 1
+                    entity = Processor.delete(db, 'river', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        river_deleted.append(entity)
 
     for feature in h.added:
         if feature[0] == 'way':
             for item in feature[4]:
                 if item[0] == 'building':
-                    if Processor.add(db, 'building', feature):
-                        b_added += 1
+                    entity = Processor.add(db, 'building', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        b_added.append(entity)
                 elif item[0] == 'highway' and item[1] == 'road':
-                    if Processor.add(db, 'road', feature):
-                        road_added += 1
+                    entity = Processor.add(db, 'road', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        road_added.append(entity)
                 elif item[0] == 'waterway' and item[1] == 'river':
-                    if Processor.add(db, 'river', feature):
-                        river_added += 1
+                    entity = Processor.add(db, 'river', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        river_added.append(entity)
 
     for feature in h.modified:
         if feature[0] == 'way':
             for item in feature[4]:
                 if item[0] == 'building':
-                    if Processor.edit(db, 'building', feature):
-                        b_edited += 1
+                    entity = Processor.edit(db, 'building', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        b_edited.append(entity)
                 elif item[0] == 'highway' and item[1] == 'road':
-                    if Processor.edit(db, 'road', feature):
-                        road_edited += 1
+                    entity = Processor.edit(db, 'road', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        road_edited.append(entity)
                 elif item[0] == 'waterway' and item[1] == 'river':
-                    if Processor.edit(db, 'river', feature):
-                        river_edited += 1
+                    entity = Processor.edit(db, 'river', feature)
+                    if entity is not None:
+                        entity = make_geojson(entity)
+                        river_edited.append(entity)
 
-    print("Deleted features: {:d} buildings, {:d} roads, {:d} rivers".format(b_deleted, road_deleted, river_deleted))
-    print("Added features: {:d} buildings, {:d} roads, {:d} rivers".format(b_added, road_added, river_added))
-    print("Modified features: {:d} buildings, {:d} roads, {:d} rivers".format(b_edited, road_edited, river_edited))
+    data = {"b_deleted": b_deleted, "road_deleted": road_deleted, "river_deleted": river_deleted, "b_added": b_added,
+            "road_added": road_added, "river_added": river_added,
+            "b_edited": b_edited, "road_edited": road_edited, "river_edited": river_edited}
+
+    return data
