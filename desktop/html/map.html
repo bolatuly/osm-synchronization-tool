@@ -1,38 +1,362 @@
 <!doctype html>
 <html lang="en">
-  <head>
+<head>
     <link rel="stylesheet" href="ol.css" type="text/css">
     <style>
-      .map {
-        height: 400px;
-        width: 100%;
-      }
+        .map {
+            height: 580px;
+            width: 100%;
+        }
+
+        body {
+            background-color: #EFEBE7;
+        }
+
+        .ol-popup {
+            position: absolute;
+            background-color: white;
+            -webkit-filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.2));
+            filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.2));
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #cccccc;
+            bottom: 12px;
+            left: -50px;
+            min-width: 280px;
+        }
+
+        .ol-popup:after, .ol-popup:before {
+            top: 100%;
+            border: solid transparent;
+            content: " ";
+            height: 0;
+            width: 0;
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .ol-popup:after {
+            border-top-color: white;
+            border-width: 10px;
+            left: 48px;
+            margin-left: -10px;
+        }
+
+        .ol-popup:before {
+            border-top-color: #cccccc;
+            border-width: 11px;
+            left: 48px;
+            margin-left: -11px;
+        }
+
+        .ol-popup-closer {
+            text-decoration: none;
+            position: absolute;
+            top: 2px;
+            right: 8px;
+        }
+
+        .ol-popup-closer:after {
+            content: "✖";
+        }
+
+        code {
+            padding: 2px 4px;
+            font-size: 90%;
+            color: #c7254e;
+            background-color: #f9f2f4;
+            border-radius: 4px;
+        }
+
+        #checkbox1 {
+            position: absolute;
+            top: 85px;
+            left: 20px;
+            z-index: 2;
+            background-color: red;
+        }
+
+        #checkbox2 {
+            position: absolute;
+            top: 106px;
+            left: 20px;
+            z-index: 2;
+            background-color: green;
+        }
+
+        #checkbox3 {
+            position: absolute;
+            top: 127px;
+            left: 20px;
+            z-index: 2;
+            background-color: #000066;
+        }
     </style>
     <script src="ol.js"></script>
     <title>OpenLayers example</title>
-  </head>
-  <body>
-    <div id="map" class="map"></div>
-    <script type="text/javascript">
-        var vectorFeaturesSource = new ol.source.Vector({});
-        var vectorFeaturesLayer = new ol.layer.Vector({
-        source: vectorFeaturesSource
-        });
-        var map = new ol.Map({
+</head>
+<body>
+<div id="checkbox1"><input type="checkbox" checked id="cb1" onclick="checkBoxChange(this.id)"></div>
+<div id="checkbox2"><input type="checkbox" checked id="cb2" onclick="checkBoxChange(this.id)"></div>
+<div id="checkbox3"><input type="checkbox" checked id="cb3" onclick="checkBoxChange(this.id)"></div>
+<div id="map" class="map">
+
+</div>
+<div id="popup" class="ol-popup">
+    <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+    <div id="popup-content"></div>
+</div>
+<script type="text/javascript">
+
+    var container = document.getElementById('popup');
+    var content = document.getElementById('popup-content');
+    var closer = document.getElementById('popup-closer');
+
+    var vectorFeaturesSource = new ol.source.Vector({});
+
+    var vectorFeaturesLayer = new ol.layer.Vector({
+        source: vectorFeaturesSource,
+        style: getStyle
+    });
+
+    var initialVectorFeaturesSource = new ol.source.Vector({});
+    var initialVectorFeaturesLayer = new ol.layer.Vector({
+        source: initialVectorFeaturesSource,
+        style: getInitialStyle
+    });
+
+    var overlay = new ol.Overlay({
+        element: container,
+        autoPan: true,
+        autoPanAnimation: {
+            duration: 250
+        }
+    });
+
+    closer.onclick = function () {
+        overlay.setPosition(undefined);
+        closer.blur();
+        return false;
+    };
+
+    var map = new ol.Map({
+        overlays: [overlay],
         target: 'map',
         layers: [
-          new ol.layer.Tile({
-            source: new ol.source.OSM()
-          }),
-          vectorFeaturesLayer
+            new ol.layer.Tile({
+                source: new ol.source.OSM()
+            }),
+            initialVectorFeaturesLayer, vectorFeaturesLayer
         ],
         view: new ol.View({
-          center: ol.proj.fromLonLat([37.41, 8.82]),
-          zoom: 4
+            center: ol.proj.fromLonLat([127.058213, 37.506546]),
+            zoom: 11
         })
-      });
+    });
 
 
-    </script>
-  </body>
+    function getInitialStyle(feature) {
+
+
+        if (feature.getProperties().action == 'modified') {
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    lineDash: [8],
+                    color: '#000066',
+                    width: 6
+                })
+            })
+        }
+        else if (feature.getProperties().action == 'deleted') {
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: 'red',
+                    width: 3
+                })
+            })
+        }
+    }
+
+    function getStyle(feature) {
+
+        if (feature.getProperties().action == 'added') {
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: 'green',
+                    width: 3
+                })
+            })
+        }
+        else if (feature.getProperties().action == 'modified') {
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: '#0000e6',
+                    width: 3
+                })
+            })
+        }
+    }
+
+    map.on('click', function (evt) {
+        displayFeatureInfo(evt);
+    });
+
+    var displayFeatureInfo = function (evt) {
+
+        var pixel = evt.pixel;
+        var coordinate = evt.coordinate;
+
+        var feature = map.forEachFeatureAtPixel(pixel, function (feature) {
+            return feature;
+        });
+
+        if (feature) {
+            var text = '';
+            if (feature.get('action') == 'deleted') {
+                text = getText(feature)
+            }
+            else if (feature.get('action') == 'modified') {
+                text = modifiedFeatureText(feature)
+            }
+            else if (feature.get('action') == 'added') {
+                text = getText(feature)
+            }
+            content.innerHTML = text;
+            overlay.setPosition(coordinate);
+        } else {
+            overlay.setPosition(undefined);
+            closer.blur();
+            console.log("no feature")
+        }
+    };
+
+    function modifiedFeatureText(feature) {
+        var iFeature = initialVectorFeaturesSource.getFeatureById(feature.getId())
+        var aFeature = vectorFeaturesSource.getFeatureById(feature.getId())
+        var text = '';
+        if (iFeature.get('table') == 'building') {
+            text += "id: " + iFeature.getId() + "</br>";
+            text += "name: " + compareData(iFeature, aFeature, 'name') + "</br>";
+            text += "addr_house_num: " + compareData(iFeature, aFeature, 'addr_house_num') + "</br>";
+            text += "usage: " + compareData(iFeature, aFeature, 'usage') + "</br>";
+            text += "levels: " + compareData(iFeature, aFeature, 'levels') + "</br>";
+            text += "addr_street: " + compareData(iFeature, aFeature, 'addr_street') + "</br>";
+            text += "building_type: " + compareData(iFeature, aFeature, 'building_type') + "</br>";
+        } else if (iFeature.get('table') == 'river') {
+            text += "id: " + iFeature.getId() + "</br>";
+            text += "name: " + compareData(iFeature, aFeature, 'name') + "</br>";
+            text += "width: " + compareData(iFeature, aFeature, 'width') + "</br>";
+        } else if (iFeature.get('table') == 'road') {
+            text += "id: " + iFeature.getId() + "</br>";
+            text += "name: " + compareData(iFeature, aFeature, 'name') + "</br>";
+            text += "road_type: " + compareData(iFeature, aFeature, 'road_type') + "</br>";
+            text += "access: " + compareData(iFeature, aFeature, 'access') + "</br>";
+            text += "oneway: " + compareData(iFeature, aFeature, 'oneway') + "</br>";
+        }
+        return text
+    }
+
+    function compareData(iFeature, aFeature, attr) {
+        if (iFeature.get(attr) == aFeature.get(attr)) {
+            return checkNull(iFeature.get(attr))
+        } else {
+            return "<span style='color: red !important;'>" + iFeature.get(attr) + "</span>" + "<code>=></code>" + "<span style='color: green !important;'>" + aFeature.get(attr) + "</span>";
+        }
+    }
+
+    function checkNull(data) {
+        if (data) {
+            return data;
+        } else {
+            return "<code>no data</code>";
+        }
+    }
+
+    function getText(feature) {
+        var text = '';
+        if (feature.get('table') == 'building') {
+            text += "id: " + feature.getId() + "</br>";
+            text += "name: " + checkNull(feature.get('name')) + "</br>";
+            text += "addr_house_num: " + checkNull(feature.get('addr_house_num')) + "</br>";
+            text += "usage: " + checkNull(feature.get('usage')) + "</br>";
+            text += "levels: " + checkNull(feature.get('levels')) + "</br>";
+            text += "addr_street: " + checkNull(feature.get('addr_street')) + "</br>";
+            text += "building_type: " + checkNull(feature.get('building_type')) + "</br>";
+        } else if (feature.get('table') == 'river') {
+            text += "id: " + feature.getId() + "</br>";
+            text += "name: " + checkNull(feature.get('name')) + "</br>";
+            text += "width: " + checkNull(feature.get('width')) + "</br>";
+        } else if (feature.get('table') == 'road') {
+            text += "id: " + feature.getId() + "</br>";
+            text += "name: " + checkNull(feature.get('name')) + "</br>";
+            text += "road_type: " + checkNull(feature.get('road_type')) + "</br>";
+            text += "access: " + checkNull(feature.get('access')) + "</br>";
+            text += "oneway: " + checkNull(feature.get('oneway')) + "</br>";
+        }
+        return text
+    }
+
+    function checkBoxChange(id) {
+        var value = document.getElementById(id).checked;
+
+        var i_features = initialVectorFeaturesSource.getFeatures();
+        var a_features = vectorFeaturesSource.getFeatures();
+
+        if (id == "cb1") {
+            // hide deleted
+            for (var i = 0; i < i_features.length; i++) {
+                if (!value) {
+                    if (i_features[i].get('action') == 'deleted') {
+                        i_features[i].setStyle(new ol.style.Style(null));
+                    }
+                } else {
+                    if (i_features[i].get('action') == 'deleted') {
+                        i_features[i].setStyle(getInitialStyle(i_features[i]));
+                    }
+                }
+            }
+        } else if (id == "cb2") {
+            //hide new
+            for (var i = 0; i < a_features.length; i++) {
+                if (!value) {
+                    if (a_features[i].get('action') == 'added') {
+                        a_features[i].setStyle(new ol.style.Style(null));
+                    }
+                } else {
+                    if (a_features[i].get('action') == 'added') {
+                        a_features[i].setStyle(getStyle(a_features[i]));
+                    }
+                }
+            }
+        } else if (id == "cb3") {
+            //hide edited
+            for (var i = 0; i < a_features.length; i++) {
+                if (!value) {
+                    if (a_features[i].get('action') == 'modified') {
+                        a_features[i].setStyle(new ol.style.Style(null));
+                    }
+                } else {
+                    if (a_features[i].get('action') == 'modified') {
+                        a_features[i].setStyle(getStyle(a_features[i]));
+                    }
+                }
+            }
+            for (var i = 0; i < i_features.length; i++) {
+                if (!value) {
+                    if (i_features[i].get('action') == 'modified') {
+                        i_features[i].setStyle(new ol.style.Style(null));
+                    }
+                } else {
+                    if (i_features[i].get('action') == 'modified') {
+                        i_features[i].setStyle(getInitialStyle(i_features[i]));
+                    }
+                }
+            }
+        }
+
+
+    }
+
+</script>
+</body>
 </html>

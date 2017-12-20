@@ -1,14 +1,10 @@
 import osmium as o
 
-from custom_schema import Building as building_sync
-from custom_schema import River as river_sync
-from custom_schema import Road as road_sync
-from entity.building import Building
-from entity.river import River
-from entity.road import Road
+from custom_schema import Building
+from custom_schema import River
+from custom_schema import Road
 from database import Database
-import shapely.wkb as wkblib
-import geojson
+from json_maker import geojson
 
 
 class FileStatsHandler(o.SimpleHandler):
@@ -78,11 +74,11 @@ class Processor:
             building.id = id
             building.geom = geom
             building.name = dictionary['name'] if 'name' in dictionary else None
-            building.house_num = dictionary['addr:housenumber'] if 'addr:housenumber' in dictionary else None
+            building.addr_house_num = dictionary['addr:housenumber'] if 'addr:housenumber' in dictionary else None
             building.usage = dictionary['building:use'] if 'building:use' in dictionary else None
             building.levels = dictionary['building:levels'] if 'building:levels' in dictionary else None
-            building.street = dictionary['addr:street'] if 'addr:street' in dictionary else None
-            building.type = dictionary['building'] if 'building' in dictionary else None
+            building.addr_street = dictionary['addr:street'] if 'addr:street' in dictionary else None
+            building.building_type = dictionary['building'] if 'building' in dictionary else None
             return building
         elif type == 'river':
             river = River()
@@ -96,7 +92,7 @@ class Processor:
             road.id = id
             road.geom = geom
             road.name = dictionary['name'] if 'name' in dictionary else None
-            road._road_type = dictionary['highway'] if 'highway' in dictionary else None
+            road.road_type = dictionary['highway'] if 'highway' in dictionary else None
             road.access = dictionary['access'] if 'access' in dictionary else None
             road.oneway = dictionary['oneway'] if 'oneway' in dictionary else None
             return road
@@ -112,11 +108,11 @@ class Processor:
                 tags.append((d[1], d[2]))
             entity = Processor.makeEntity(id, geom, tags, type)
             if type == 'building':
-                return building_sync.delete(entity)
+                return Building().delete(entity)
             if type == 'road':
-                return road_sync.delete(entity)
+                return Road().delete(entity)
             if type == 'river':
-                return river_sync.delete(entity)
+                return River().delete(entity)
 
     @staticmethod
     def add(db, type, feature):
@@ -129,11 +125,11 @@ class Processor:
                 tags.append((d[1], d[2]))
             entity = Processor.makeEntity(id, geom, tags, type)
             if type == 'building':
-                return building_sync.add(entity)
+                return Building().add(entity)
             if type == 'road':
-                return road_sync.add(entity)
+                return Road().add(entity)
             if type == 'river':
-                return river_sync.add(entity)
+                return River().add(entity)
 
     @staticmethod
     def edit(db, type, feature):
@@ -146,17 +142,11 @@ class Processor:
                 tags.append((d[1], d[2]))
             entity = Processor.makeEntity(id, geom, tags, type)
             if type == 'building':
-                return building_sync.edit(entity)
+                return Building().edit(entity)
             if type == 'road':
-                return road_sync.edit(entity)
+                return Road().edit(entity)
             if type == 'river':
-                return river_sync.edit(entity)
-
-
-def make_geojson(entity):
-    g1 = wkblib.loads(entity.geom, hex=True)
-    g2 = geojson.Feature(geometry=g1, properties={})
-    return g2
+                return River().edit(entity)
 
 
 def syncronize(file):
@@ -164,36 +154,14 @@ def syncronize(file):
 
     h.apply_file(file, locations=True)
 
-    b_deleted = []
     b_added = []
     b_edited = []
-    road_deleted = []
     road_added = []
     road_edited = []
-    river_deleted = []
     river_added = []
     river_edited = []
 
     db = Database()
-
-    for feature in h.deleted:
-        if feature[0] == 'way':
-            for item in feature[4]:
-                if item[0] == 'building':
-                    entity = Processor.delete(db, 'building', feature)
-                    if entity is not None:
-                        entity = make_geojson(entity)
-                        b_deleted.append(entity)
-                elif item[0] == 'highway' and item[1] == 'road':
-                    entity = Processor.delete(db, 'road', feature)
-                    if entity is not None:
-                        entity = make_geojson(entity)
-                        road_deleted.append(entity)
-                elif item[0] == 'waterway' and item[1] == 'river':
-                    entity = Processor.delete(db, 'river', feature)
-                    if entity is not None:
-                        entity = make_geojson(entity)
-                        river_deleted.append(entity)
 
     for feature in h.added:
         if feature[0] == 'way':
@@ -201,17 +169,17 @@ def syncronize(file):
                 if item[0] == 'building':
                     entity = Processor.add(db, 'building', feature)
                     if entity is not None:
-                        entity = make_geojson(entity)
+                        entity = geojson(entity, 'added')
                         b_added.append(entity)
                 elif item[0] == 'highway' and item[1] == 'road':
                     entity = Processor.add(db, 'road', feature)
                     if entity is not None:
-                        entity = make_geojson(entity)
+                        entity = geojson(entity, 'added')
                         road_added.append(entity)
                 elif item[0] == 'waterway' and item[1] == 'river':
                     entity = Processor.add(db, 'river', feature)
                     if entity is not None:
-                        entity = make_geojson(entity)
+                        entity = geojson(entity, 'added')
                         river_added.append(entity)
 
     for feature in h.modified:
@@ -220,21 +188,77 @@ def syncronize(file):
                 if item[0] == 'building':
                     entity = Processor.edit(db, 'building', feature)
                     if entity is not None:
-                        entity = make_geojson(entity)
+                        entity = geojson(entity, 'modified')
                         b_edited.append(entity)
                 elif item[0] == 'highway' and item[1] == 'road':
                     entity = Processor.edit(db, 'road', feature)
                     if entity is not None:
-                        entity = make_geojson(entity)
+                        entity = geojson(entity, 'modified')
                         road_edited.append(entity)
                 elif item[0] == 'waterway' and item[1] == 'river':
                     entity = Processor.edit(db, 'river', feature)
                     if entity is not None:
-                        entity = make_geojson(entity)
+                        entity = geojson(entity, 'modified')
                         river_edited.append(entity)
 
-    data = {"b_deleted": b_deleted, "road_deleted": road_deleted, "river_deleted": river_deleted, "b_added": b_added,
+    data = {"b_added": b_added,
             "road_added": road_added, "river_added": river_added,
+            "b_edited": b_edited, "road_edited": road_edited, "river_edited": river_edited}
+
+    return data
+
+
+def initial_data(file):
+    h = FileStatsHandler()
+
+    h.apply_file(file, locations=True)
+
+    b_deleted = []
+    b_edited = []
+    road_deleted = []
+    road_edited = []
+    river_deleted = []
+    river_edited = []
+
+    for feature in h.deleted:
+        if feature[0] == 'way':
+            for item in feature[4]:
+                if item[0] == 'building':
+                    entity = Building().select(feature[2])
+                    if entity is not None:
+                        entity = geojson(entity, 'deleted')
+                        b_deleted.append(entity)
+                elif item[0] == 'highway' and item[1] == 'road':
+                    entity = Road().select(feature[2])
+                    if entity is not None:
+                        entity = geojson(entity, 'deleted')
+                        road_deleted.append(entity)
+                elif item[0] == 'waterway' and item[1] == 'river':
+                    entity = River().select(feature[2])
+                    if entity is not None:
+                        entity = geojson(entity, 'deleted')
+                        river_deleted.append(entity)
+
+    for feature in h.modified:
+        if feature[0] == 'way':
+            for item in feature[4]:
+                if item[0] == 'building':
+                    entity = Building().select(feature[2])
+                    if entity is not None:
+                        entity = geojson(entity, 'modified')
+                        b_edited.append(entity)
+                elif item[0] == 'highway' and item[1] == 'road':
+                    entity = Road().select(feature[2])
+                    if entity is not None:
+                        entity = geojson(entity, 'modified')
+                        road_edited.append(entity)
+                elif item[0] == 'waterway' and item[1] == 'river':
+                    entity = River().select(feature[2])
+                    if entity is not None:
+                        entity = geojson(entity, 'modified')
+                        river_edited.append(entity)
+
+    data = {"b_deleted": b_deleted, "road_deleted": road_deleted, "river_deleted": river_deleted,
             "b_edited": b_edited, "road_edited": road_edited, "river_edited": river_edited}
 
     return data

@@ -16,6 +16,7 @@ Session = sessionmaker(bind=db)
 ses = Session()
 
 
+# all changes to db temporarly commented
 class Building(Base):
     __tablename__ = "building"
 
@@ -32,16 +33,10 @@ class Building(Base):
     def edit(building):
         b = ses.query(Building).filter_by(id=building.id).first()
         if b:
-            b.name = building.name
-            b.addr_house_num = building.house_num
-            b.usage = building.usage
-            b.levels = building.levels
-            b.addr_street = building.street
-            b.building_type = building.type
-            b.geom = building.geom
-            ses.add(b)
-            ses.commit()
-            return building
+            b = building
+            # ses.add(b)
+            # ses.commit()
+            return b
         else:
             return None
 
@@ -49,27 +44,26 @@ class Building(Base):
     def add(building):
         b = ses.query(Building).filter_by(id=building.id).first()
         if b:
-            # Temporarily return true, then it should be false
-            return building
+            return None
         else:
-            b = Building()
-            b.id = building.id
-            b.name = building.name
-            b.addr_house_num = building.house_num
-            b.usage = building.usage
-            b.levels = building.levels
-            b.addr_street = building.street
-            b.building_type = building.type
-            b.geom = building.geom
-            ses.add(b)
-            ses.commit()
-            return building
+            b = building
+            # ses.add(b)
+            # ses.commit()
+            return b
 
     @staticmethod
     def delete(building):
         # simulate deletion
         # TODO later decide
         return building
+
+    @staticmethod
+    def select(building):
+        b = ses.query(Building).filter_by(id=building).first()
+        if b:
+            return b
+        else:
+            return None
 
 
 class Road(Base):
@@ -86,14 +80,10 @@ class Road(Base):
     def edit(road):
         b = ses.query(Road).filter_by(id=road.id).first()
         if b:
-            b.name = road.name
-            b.road_type = road.road_type
-            b.access = road.access
-            b.oneway = road.oneway
-            b.geom = road.geom
-            ses.add(b)
-            ses.commit()
-            return road
+            b = road
+            # ses.add(b)
+            # ses.commit()
+            return b
         else:
             return None
 
@@ -101,24 +91,26 @@ class Road(Base):
     def add(road):
         b = ses.query(Road).filter_by(id=road.id).first()
         if b:
-            # Temporarily return true, then it should be false
-            return road
-        else:
-            b.id = road.id
-            b.name = road.name
-            b.road_type = road.road_type
-            b.access = road.access
-            b.oneway = road.oneway
-            b.geom = road.geom
-            ses.add(b)
-            ses.commit()
             return None
+        else:
+            b = road
+            # ses.add(b)
+            # ses.commit()
+            return b
 
     @staticmethod
     def delete(road):
         # simulate deletion
         # TODO later decide
         return road
+
+    @staticmethod
+    def select(road):
+        b = ses.query(Road).filter_by(id=road).first()
+        if b:
+            return b
+        else:
+            return None
 
 
 class River(Base):
@@ -133,32 +125,34 @@ class River(Base):
     def edit(river):
         b = ses.query(River).filter_by(id=river.id).first()
         if b:
-            b.name = river.name
-            b.width = river.width
-            b.geom = river.geom
-            ses.add(b)
-            ses.commit()
-            return river
+            b = river
+            # ses.add(b)
+            # ses.commit()
+            return b
         else:
             return None
 
     @staticmethod
     def add(river):
         b = ses.query(River).filter_by(id=river.id).first()
-        if b is None:
-            # Temporarily return true, then it should be false
-            return river
+        if b:
+            return None
         else:
-            b.id = river.id
-            b.name = river.name
-            b.width = river.width
-            b.geom = river.geom
-            ses.add(b)
-            ses.commit()
-            return river
+            b = river
+            # ses.add(b)
+            # ses.commit()
+            return b
 
     @staticmethod
     def delete(river):
         # simulate deletion
         # TODO later decide
         return river
+
+    @staticmethod
+    def select(river):
+        b = ses.query(River).filter_by(id=river).first()
+        if b:
+            return b
+        else:
+            return None
